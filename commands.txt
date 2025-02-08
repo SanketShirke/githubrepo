@@ -10,3 +10,4 @@ git pull
 git fetch
 git flog --online
 git merge
+git push origin main
