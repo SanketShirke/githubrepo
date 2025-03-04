@@ -1,0 +1,52 @@
+name: Django Todo App CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Clone the code
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Build Docker image
+    - name: Build Docker Image
+      run: |
+        docker build . -t demo-app
+        echo 'Code has been built'
+    
+    # Login to Docker Hub and push image
+    - name: Login to Docker Hub and Push Image
+      env:
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      run: |
+        docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+        docker tag demo-app:latest $DOCKERHUB_USERNAME/demo-app:latest
+        docker push $DOCKERHUB_USERNAME/demo-app:latest
+        echo 'Pushing the code to Docker Hub repo'
+    
+    # Deploy to AWS Instance
+    - name: Deploy to AWS Instance
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+        AWS_HOST: ${{ secrets.AWS_HOST }}
+      run: |
+        # Install SSH key
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        
+        # SSH into AWS instance and deploy
+        ssh -o StrictHostKeyChecking=no ubuntu@$AWS_HOST << EOF
+          cd /path/to/your/project
+          docker compose down
+          docker compose up -d
+        EOF
+        echo 'Deployed the application on AWS Instance'
